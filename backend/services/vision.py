@@ -13,14 +13,23 @@ load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+# Gemini client initialized lazily so the app can boot
+# even before a deployment secret is configured.
+client = None
+if GEMINI_API_KEY:
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+MODEL_NAME = "gemini-2.0-flash"
 
 
-# Gemini client
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-MODEL_NAME = "gemini-3.6-flash"
+def get_client():
+    if client is None:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. "
+            "Add it to the environment or a .env file before using AI features."
+        )
+    return client
 
 
 # ============================================================
@@ -97,13 +106,14 @@ Make the result concise but useful for exam preparation.
 """
 
     response = None
+    model_client = get_client()
 
     # Retry temporary Gemini service errors
     for attempt in range(3):
 
         try:
 
-            response = client.models.generate_content(
+            response = model_client.models.generate_content(
                 model=MODEL_NAME,
                 contents=[
                     types.Part.from_bytes(
@@ -192,7 +202,8 @@ Rules:
   to make it easier to understand.
 """
 
-    response = client.models.generate_content(
+    model_client = get_client()
+    response = model_client.models.generate_content(
         model=MODEL_NAME,
         contents=prompt,
     )
